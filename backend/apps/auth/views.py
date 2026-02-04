@@ -28,7 +28,8 @@ from .services import auth_service
         tags=["auth"],
         summary="User Registration",
         description="Register a new user account with email and password. "
-        "Triggers background task for user environment initialization.",
+        "Triggers background task for user environment initialization. "
+        "This endpoint is public and does not require authentication.",
         request=SignupSerializer,
         responses={
             201: UserSerializer,
@@ -45,6 +46,7 @@ from .services import auth_service
                 response_only=True,
             )
         ],
+        auth=[],  # Public endpoint - no authentication required
     )
 )
 class SignupView(APIView):
@@ -78,7 +80,8 @@ class SignupView(APIView):
         tags=["auth"],
         summary="User Sign-In",
         description="Authenticate user with email and password. "
-        "Returns JWT access token (15 min) and refresh token (7 days).",
+        "Returns JWT access token (15 min) and refresh token (7 days). "
+        "This endpoint is public and does not require authentication.",
         request=SigninSerializer,
         responses={
             200: TokenResponseSerializer,
@@ -96,6 +99,7 @@ class SignupView(APIView):
                 response_only=True,
             )
         ],
+        auth=[],  # Public endpoint - no authentication required
     )
 )
 class SigninView(APIView):
@@ -130,7 +134,8 @@ class SigninView(APIView):
         summary="Refresh Access Token",
         description="Generate a new access token using a valid refresh token. "
         "Validates token is not blacklisted in Redis. "
-        "Returns new refresh token if rotation is enabled.",
+        "Returns new refresh token if rotation is enabled. "
+        "This endpoint is public per OAuth2 specification (no Bearer token required).",
         request=TokenRefreshSerializer,
         responses={
             200: TokenResponseSerializer,
@@ -148,6 +153,7 @@ class SigninView(APIView):
                 response_only=True,
             )
         ],
+        auth=[],  # Public endpoint - no authentication required (OAuth2 standard)
     )
 )
 class TokenRefreshView(APIView):

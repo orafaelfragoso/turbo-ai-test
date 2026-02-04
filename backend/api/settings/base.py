@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     # Local apps
     "apps.auth",
+    "apps.notes",
 ]
 
 MIDDLEWARE = [
@@ -303,16 +304,12 @@ SPECTACULAR_SETTINGS = {
     ],
     "TAGS": [
         {"name": "auth", "description": "Authentication endpoints"},
+        {"name": "categories", "description": "Category management endpoints"},
+        {"name": "notes", "description": "Note management endpoints"},
+        {"name": "monitoring", "description": "Health check and monitoring endpoints"},
     ],
-    "SECURITY": [
-        {
-            "Bearer": {
-                "type": "http",
-                "scheme": "bearer",
-                "bearerFormat": "JWT",
-            }
-        }
-    ],
+    # Default security requirement - applies to all endpoints unless overridden
+    "SECURITY": [{"Bearer": []}],
     "APPEND_COMPONENTS": {
         "securitySchemes": {
             "Bearer": {

@@ -37,7 +37,8 @@ class HealthCheckView(APIView):
     @extend_schema(
         summary="Health Check",
         description="Check if the API service is running and healthy. "
-        "Returns a 200 status with 'healthy' message when service is operational.",
+        "Returns a 200 status with 'healthy' message when service is operational. "
+        "This endpoint is public and does not require authentication.",
         responses={
             200: HealthCheckResponseSerializer,
         },
@@ -49,6 +50,7 @@ class HealthCheckView(APIView):
             )
         ],
         tags=["monitoring"],
+        auth=[],  # Public endpoint - no authentication required
     )
     def get(self, request):
         """Return health status."""
@@ -59,6 +61,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", HealthCheckView.as_view(), name="health_check"),
     path("api/auth/", include("apps.auth.urls")),
+    path("api/", include("apps.notes.urls")),
     # OpenAPI/Swagger Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
