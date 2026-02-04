@@ -8,8 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-noteapp_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Port not exposed in production for security - access via backend only
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-noteapp_user} -d ${POSTGRES_DB:-noteapp_db}"]
       interval: 10s
@@ -24,8 +23,7 @@ services:
     command: redis-server ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
+    # Port not exposed in production for security - access via backend only
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -103,6 +101,34 @@ services:
         condition: service_healthy
       api:
         condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - noteapp_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: noteapp_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:8000}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
     logging:
       driver: "json-file"
       options:

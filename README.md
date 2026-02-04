@@ -161,33 +161,157 @@ I implemented **all 12 factors** to demonstrate production-grade systems experti
 
 **Impact**: Environment-specific optimizations without duplication, easier secret management.
 
-## Frontend (Future)
+## Frontend
 
-**Status**: Not yet implemented.
+### Technology Stack
 
-**Reflection**: Developer experience could be better with either:
-1. Monorepo with same-language full-stack (e.g., Node.js + Next.js)
-2. Separate repositories for backend and frontend
+#### Next.js 16 + React 19 + TypeScript
 
-**Current Reality**: Python backend + future JavaScript frontend in same repo makes proper monorepo tooling (shared configs, unified scripts) challenging.
+**Why**: Modern React framework with built-in optimizations, server-side rendering capabilities, and excellent developer experience. TypeScript ensures type safety across the codebase.
 
-**When Built**: Will consume the Django REST API with JWT authentication, implement note CRUD and category management.
+**Impact**: Fast page loads, automatic code splitting, built-in API routes, hot module replacement for instant feedback during development.
+
+#### Tailwind CSS 4
+
+**Why**: Utility-first CSS framework enables rapid UI development without leaving the markup. Version 4 brings performance improvements and modern CSS features.
+
+**Impact**: Consistent design system, reduced CSS bundle size, faster development velocity.
+
+#### Bun Package Manager
+
+**Why**: Significantly faster package installation and script execution compared to npm/yarn (3-10x in benchmarks).
+
+**Impact**: Faster builds, reduced CI/CD time, improved developer experience with instant feedback.
+
+### Containerization
+
+#### Docker Development & Production Setup
+
+**Development**:
+- Hot reload with Next.js Fast Refresh
+- Volume mounting for instant code changes
+- Optimized for macOS with `:cached` mount flags
+- Separate from production build for faster feedback
+
+**Production**:
+- Multi-stage Docker build for minimal image size
+- Next.js standalone mode reduces image to ~72MB (compressed)
+- Non-root user for security
+- Health check endpoint at `/api/health`
+
+**Files**: [`frontend/Dockerfile`](frontend/Dockerfile) (production), [`frontend/Dockerfile.dev`](frontend/Dockerfile.dev) (development)
+
+**Impact**: Development/production parity, consistent environments, optimized production deployment, seamless hot reload during development.
+
+### Architecture & Security
+
+#### Network Isolation
+
+**Strategy**: Frontend container can only communicate with backend API via Docker network. No direct access to PostgreSQL or Redis.
+
+**Implementation**: Docker Compose configures frontend service on `noteapp_network` with dependencies only on `api` service. Database and cache ports not exposed to frontend.
+
+**Impact**: Defense in depth, reduced attack surface, enforces proper API-based architecture.
+
+#### Environment Configuration
+
+**Variables**:
+- `NEXT_PUBLIC_API_URL`: Backend API endpoint (defaults: `http://localhost:8000` dev, `http://api:8000` prod)
+- `NODE_ENV`: Environment mode (development/production)
+
+**Impact**: Flexible deployment configurations, environment-specific optimizations, client-side API discovery.
 
 ## Quick Start
 
+### Development Environment
+
 ```bash
-# Start development environment
-make dev-up-d
+# Start all services (backend + frontend + databases)
+docker-compose -f docker-compose.dev.yml up
 
-# View API docs
-open http://localhost:8000/api/docs/
+# Or start in detached mode
+docker-compose -f docker-compose.dev.yml up -d
 
-# Run tests with coverage
-make dev-test-cov
+# View services
+docker-compose -f docker-compose.dev.yml ps
+
+# Access services
+# - Frontend: http://localhost:3000
+# - Backend API: http://localhost:8000
+# - API Docs: http://localhost:8000/api/docs/
 
 # View logs
-make dev-logs-api
+docker-compose -f docker-compose.dev.yml logs frontend
+docker-compose -f docker-compose.dev.yml logs api
+
+# Stop all services
+docker-compose -f docker-compose.dev.yml down
+
+# Run backend tests with coverage
+make dev-test-cov
 ```
+
+### Production Environment
+
+```bash
+# Build and start all services
+docker-compose up -d
+
+# View service status
+docker-compose ps
+
+# View logs
+docker-compose logs frontend
+docker-compose logs api
+
+# Stop all services
+docker-compose down
+```
+
+### Hot Reload (Development)
+
+The frontend is configured with volume mounting for instant hot reload:
+
+1. Edit any file in `frontend/app/` or `frontend/components/`
+2. Save the file
+3. Next.js Fast Refresh automatically updates the browser (no rebuild needed)
+4. Check logs: `docker-compose -f docker-compose.dev.yml logs frontend`
+
+If hot reload isn't working on macOS, set this environment variable:
+
+```bash
+echo "WATCHPACK_POLLING=true" >> .env
+docker-compose -f docker-compose.dev.yml restart frontend
+```
+
+### Troubleshooting
+
+**Frontend can't reach backend:**
+```bash
+# Check if API service is healthy
+docker-compose -f docker-compose.dev.yml ps api
+
+# Check backend logs
+docker-compose -f docker-compose.dev.yml logs api
+
+# Verify network connectivity from frontend
+docker exec -it noteapp_frontend_dev sh
+wget -O- http://api:8000/api/health/
+```
+
+**Port already in use:**
+```bash
+# Stop conflicting services
+docker-compose -f docker-compose.dev.yml down
+
+# Or change ports in docker-compose.dev.yml
+# Edit the ports section: "3001:3000" instead of "3000:3000"
+```
+
+**Slow file watching on macOS:**
+- This is a known Docker limitation on macOS
+- The `:cached` flag in docker-compose.dev.yml already optimizes this
+- If still slow, use `WATCHPACK_POLLING=true` (trades CPU for consistency)
 
 See [`backend/README.md`](backend/README.md) for comprehensive API documentation.
 
@@ -198,8 +322,15 @@ noteapp/
 ├── backend/              # Django REST Framework API
 │   ├── api/              # Django project config
 │   ├── apps/             # Applications (auth, notes)
-│   └── tests/            # 80%+ coverage test suite
-├── docker-compose.yml    # Production orchestration
-├── docker-compose.dev.yml # Development with hot reload
+│   ├── tests/            # 80%+ coverage test suite
+│   ├── Dockerfile        # Production Docker build
+│   └── Dockerfile.dev    # Development Docker build with hot reload
+├── frontend/             # Next.js 16 + React 19 application
+│   ├── app/              # App router pages and API routes
+│   ├── public/           # Static assets
+│   ├── Dockerfile        # Production Docker build (standalone mode)
+│   └── Dockerfile.dev    # Development Docker build with hot reload
+├── docker-compose.yml    # Production orchestration (frontend + backend + databases)
+├── docker-compose.dev.yml # Development with hot reload for both frontend and backend
 └── Makefile              # 30+ automation commands
 ```
