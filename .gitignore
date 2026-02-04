@@ -31,13 +31,11 @@ htmlcov/
 *.cover
 .hypothesis/
 coverage.xml
-*.coveragerc
 
 # Linting
 .ruff_cache/
 
 # IDEs
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -54,9 +52,6 @@ db.sqlite3
 local_settings.py
 staticfiles/
 media/
-
-# Docker
-.dockerignore
 
 # Poetry
 poetry.lock
