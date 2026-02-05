@@ -47,8 +47,8 @@ services:
     volumes:
       # Mount source code for hot-reload (cached for better performance on macOS)
       - ./backend:/app:cached
-      # Prevent __pycache__ pollution on host
-      - /app/__pycache__
+      # Named volume for __pycache__ to prevent anonymous volume accumulation
+      - backend_pycache:/app/__pycache__
       # Named volume for Poetry cache to speed up dependency installs
       - poetry_cache:/root/.cache/pypoetry
     environment:
@@ -82,17 +82,13 @@ services:
       - noteapp_network_dev
 
   celery_worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
-      cache_from:
-        - noteapp-api-dev:latest
+    # Reuse the same image as api service (no duplicate build)
     image: noteapp-api-dev:latest
     container_name: noteapp_celery_worker_dev
     volumes:
       # Same volume mounts as api service
       - ./backend:/app:cached
-      - /app/__pycache__
+      - backend_pycache:/app/__pycache__
       - poetry_cache:/root/.cache/pypoetry
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-noteapp_user}:${POSTGRES_PASSWORD:-noteapp_password}@postgres:5432/${POSTGRES_DB:-noteapp_db}
@@ -130,9 +126,9 @@ services:
     volumes:
       # Mount source code for hot reload (cached for better performance on macOS)
       - ./frontend:/app:cached
-      # Prevent node_modules and .next pollution on host
-      - /app/node_modules
-      - /app/.next
+      # Named volumes for node_modules and .next to prevent anonymous volume accumulation
+      - frontend_node_modules:/app/node_modules
+      - frontend_next_cache:/app/.next
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
       NODE_ENV: development
@@ -152,6 +148,12 @@ volumes:
   redis_data_dev:
     driver: local
   poetry_cache:
+    driver: local
+  backend_pycache:
+    driver: local
+  frontend_node_modules:
+    driver: local
+  frontend_next_cache:
     driver: local
 
 networks:

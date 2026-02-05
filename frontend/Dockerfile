@@ -1,44 +1,26 @@
 # ================================
-# Stage 1: Dependencies
+# Stage 1: Builder
 # ================================
-FROM node:20-alpine AS deps
-
-# Install Bun
-RUN npm install -g bun
+FROM oven/bun:1-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
 COPY package.json bun.lock ./
 
-# Install production dependencies only
-RUN bun install --frozen-lockfile --production
-
-# ================================
-# Stage 2: Builder
-# ================================
-FROM node:20-alpine AS builder
-
-# Install Bun
-RUN npm install -g bun
-
-WORKDIR /app
-
-# Copy package files and install all dependencies (including devDependencies)
-COPY package.json bun.lock ./
+# Install all dependencies (including devDependencies for build)
 RUN bun install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
-# Build Next.js application
-# This will create the standalone output
+# Build Next.js application (creates standalone output)
 RUN bun run build
 
 # ================================
-# Stage 3: Runner
+# Stage 2: Runner
 # ================================
-FROM node:20-alpine AS runner
+FROM oven/bun:1-alpine AS runner
 
 WORKDIR /app
 
@@ -47,8 +29,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
 # Copy standalone output from builder
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -65,5 +47,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start the application
-CMD ["node", "server.js"]
+# Start the application using Bun
+CMD ["bun", "run", "server.js"]

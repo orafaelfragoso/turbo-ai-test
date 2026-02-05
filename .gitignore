@@ -53,8 +53,7 @@ local_settings.py
 staticfiles/
 media/
 
-# Poetry
-poetry.lock
+# Poetry cache (but NOT poetry.lock - commit it for reproducible builds)
 
 # Documentation
 docs/_build/

@@ -36,6 +36,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: noteapp-api:latest
     container_name: noteapp_api
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-noteapp_user}:${POSTGRES_PASSWORD:-noteapp_password}@postgres:5432/${POSTGRES_DB:-noteapp_db}
@@ -78,9 +79,8 @@ services:
       - noteapp_network
 
   celery_worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    # Reuse the same image as api service (no duplicate build)
+    image: noteapp-api:latest
     container_name: noteapp_celery_worker
     command: celery -A api worker --loglevel=info
     environment:
@@ -113,6 +113,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: noteapp-frontend:latest
     container_name: noteapp_frontend
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:8000}

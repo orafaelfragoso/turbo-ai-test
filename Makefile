@@ -1,4 +1,4 @@
-.PHONY: help dev-up dev-down dev-build dev-logs dev-shell dev-migrate dev-test dev-restart dev-clean prod-up prod-down prod-build prod-logs prod-clean
+.PHONY: help dev-up dev-down dev-build dev-logs dev-shell dev-migrate dev-test dev-restart dev-clean prod-up prod-down prod-build prod-logs prod-clean docker-size docker-prune docker-prune-all docker-clean-volumes docker-clean-all docker-clean-build-cache
 
 # Default target when just running 'make'
 .DEFAULT_GOAL := help
@@ -158,3 +158,65 @@ db-restore: ## Restore development database (use: make db-restore FILE=backup.sq
 	@echo "$(GREEN)Restoring database from $(FILE)...$(NC)"
 	docker-compose -f docker-compose.dev.yml exec -T postgres psql -U noteapp_user noteapp_db < $(FILE)
 	@echo "$(GREEN)✓ Database restored!$(NC)"
+
+##@ Docker Cleanup
+
+docker-size: ## Show Docker disk usage breakdown
+	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo "$(GREEN)  Docker Disk Usage$(NC)"
+	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@docker system df
+	@echo ""
+	@echo "$(YELLOW)For detailed breakdown:$(NC) docker system df -v"
+
+docker-prune: ## Remove unused containers, networks, images, and build cache
+	@echo "$(YELLOW)Removing unused Docker resources...$(NC)"
+	@echo "$(YELLOW)This will remove:$(NC)"
+	@echo "  - All stopped containers"
+	@echo "  - All networks not used by at least one container"
+	@echo "  - All dangling images"
+	@echo "  - All dangling build cache"
+	@echo ""
+	docker system prune -f
+	@echo "$(GREEN)✓ Docker resources pruned!$(NC)"
+
+docker-prune-all: ## Remove ALL unused resources including unused images (more aggressive)
+	@echo "$(YELLOW)Removing ALL unused Docker resources...$(NC)"
+	@echo "$(YELLOW)This will remove:$(NC)"
+	@echo "  - All stopped containers"
+	@echo "  - All networks not used by at least one container"
+	@echo "  - ALL unused images (not just dangling)"
+	@echo "  - All build cache"
+	@echo ""
+	docker system prune -af
+	@echo "$(GREEN)✓ All unused Docker resources removed!$(NC)"
+
+docker-clean-volumes: ## Remove unused volumes (WARNING: may delete data)
+	@echo "$(YELLOW)WARNING: This will remove all unused volumes!$(NC)"
+	@echo "$(YELLOW)Data in unused volumes will be permanently deleted.$(NC)"
+	@echo ""
+	docker volume prune -f
+	@echo "$(GREEN)✓ Unused volumes removed!$(NC)"
+
+docker-clean-all: ## Nuclear option - remove EVERYTHING (containers, images, volumes, networks, cache)
+	@echo "$(YELLOW)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo "$(YELLOW)  WARNING: NUCLEAR OPTION$(NC)"
+	@echo "$(YELLOW)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo "This will remove:"
+	@echo "  - ALL containers (running and stopped)"
+	@echo "  - ALL images"
+	@echo "  - ALL volumes (INCLUDING DATABASE DATA)"
+	@echo "  - ALL networks"
+	@echo "  - ALL build cache"
+	@echo ""
+	@echo "$(YELLOW)Press Ctrl+C to cancel, or wait 5 seconds to continue...$(NC)"
+	@sleep 5
+	docker-compose -f docker-compose.dev.yml down -v --rmi all 2>/dev/null || true
+	docker-compose down -v --rmi all 2>/dev/null || true
+	docker system prune -af --volumes
+	@echo "$(GREEN)✓ All Docker resources removed!$(NC)"
+
+docker-clean-build-cache: ## Remove only the build cache
+	@echo "$(YELLOW)Removing Docker build cache...$(NC)"
+	docker builder prune -af
+	@echo "$(GREEN)✓ Build cache removed!$(NC)"

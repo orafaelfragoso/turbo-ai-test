@@ -1,8 +1,5 @@
 # Development Dockerfile with hot reload support
-FROM node:20-alpine
-
-# Install Bun
-RUN npm install -g bun
+FROM oven/bun:1-alpine
 
 WORKDIR /app
 

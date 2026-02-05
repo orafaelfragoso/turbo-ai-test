@@ -1,8 +1,10 @@
 # Development Dockerfile with hot-reload support
 # Multi-stage build for optimal caching and fast rebuilds
 
-# Stage 1: Base image with system dependencies
-FROM python:3.12-slim as base
+# ================================
+# Stage 1: Base with system dependencies
+# ================================
+FROM python:3.12-alpine AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -15,30 +17,36 @@ ENV PYTHONUNBUFFERED=1 \
 
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies (including build tools for dev)
+RUN apk add --no-cache \
     gcc \
+    musl-dev \
+    postgresql-dev \
     postgresql-client \
+    libffi-dev \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    bash
 
 # Install Poetry
 RUN pip install "poetry==$POETRY_VERSION"
 
+# ================================
 # Stage 2: Dependencies installation (cached layer)
-FROM base as dependencies
+# ================================
+FROM base AS dependencies
 
 WORKDIR /app
 
 # Copy only dependency files for better layer caching
 COPY pyproject.toml poetry.lock ./
 
-# Install dependencies including dev dependencies
-# Note: Removed BuildKit cache mount as it can interfere with network access during install
+# Install all dependencies including dev dependencies
 RUN poetry install --no-root --no-interaction --no-ansi
 
+# ================================
 # Stage 3: Development runtime
-FROM base as development
+# ================================
+FROM base AS development
 
 WORKDIR /app
 
@@ -47,7 +55,7 @@ COPY --from=dependencies /usr/local/lib/python3.12/site-packages /usr/local/lib/
 COPY --from=dependencies /usr/local/bin /usr/local/bin
 
 # Create non-root user with specific UID for volume mount compatibility
-RUN useradd -m -u 1000 appuser && \
+RUN adduser -D -u 1000 appuser && \
     chown -R appuser:appuser /app
 
 # Switch to non-root user
