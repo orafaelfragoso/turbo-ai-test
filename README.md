@@ -23,15 +23,23 @@ Every architectural and technology decision was made with three priorities:
 
 ### What I Built
 
-- OAuth2-compliant JWT authentication with Redis blacklist
-- Service Layer architecture pattern for clean business logic separation
-- 80%+ test coverage with pytest
-- All 12 factors of cloud-native application design
-- Production-ready Docker containerization with multi-stage builds
-- Background task processing with Celery
-- Multi-tenant data isolation with security-first design
+**Backend**: Django REST Framework API with Service Layer architecture, OAuth2-compliant JWT authentication with Redis blacklist, PostgreSQL 16 with UUID primary keys, Redis for caching and rate limiting, Celery background tasks, 80%+ test coverage, full 12-factor app compliance, and multi-tenant data isolation with security-first design.
+
+**Frontend**: Next.js 16 + React 19 + TypeScript application with Tailwind CSS 4, Bun package manager, Docker multi-stage builds (separate dev/prod configurations), network isolation architecture, and environment-based configuration for flexible deployment.
+
+**Infrastructure**: Production-ready Docker containerization with multi-stage builds, Makefile automation with 30+ commands, development/production parity, and cloud-native deployment ready for any platform.
 
 ## Backend
+
+### Key Highlights
+
+- Service Layer architecture pattern separates business logic from HTTP handling for testability and reusability
+- Django REST Framework + Python 3.12 with PostgreSQL 16 and Redis for caching and rate limiting
+- JWT authentication with Redis blacklist enables stateless tokens with proper logout capability
+- 80%+ test coverage on business logic using pytest-django with comprehensive test suites
+- Full 12-factor app compliance with Docker multi-stage builds and Makefile automation for cloud-native deployment
+- Multi-tenant data isolation with security-first design prevents ID enumeration attacks
+- Celery background tasks offload long-running operations from request/response cycle
 
 ### Architecture: Service Layer Pattern
 
@@ -39,7 +47,7 @@ I implemented the Service Layer pattern to separate business logic from HTTP req
 
 **Why**: Testability, reusability, and maintainability. Views become thin controllers, services encapsulate complex logic with transaction management.
 
-**Impact**: 
+**Impact**:
 - Business logic independently testable without HTTP mocking
 - Transaction boundaries clearly defined
 - Easy to reuse logic across different endpoints or background tasks
@@ -50,287 +58,85 @@ I implemented the Service Layer pattern to separate business logic from HTTP req
 
 #### Django REST Framework + Python 3.12
 
-**Why**: Mature ecosystem with batteries-included approach enables rapid development without sacrificing robustness. Built-in admin, ORM security, and extensive middleware ecosystem.
+I chose Django REST Framework for its mature ecosystem and batteries-included approach, enabling rapid development without sacrificing robustness. Built-in admin, ORM security, and extensive middleware reduce boilerplate while automatically preventing SQL injection. The framework's maturity means instant admin panels and battle-tested patterns for production use.
 
-**Impact**: Reduced boilerplate, automatic SQL injection prevention, instant admin panel for operations.
+#### Database & Caching: PostgreSQL 16 + Redis
 
-#### PostgreSQL 16
+I selected PostgreSQL 16 for JSONB support, robust ACID transactions, and excellent performance at scale. UUID primary keys prevent ID enumeration attacks, enhancing security while better suiting distributed systems.
 
-**Why**: JSONB support for flexible schemas, robust ACID transactions, excellent performance at scale. UUID primary keys for notes prevent ID enumeration attacks.
+Redis handles three critical use cases: JWT blacklist for instant token revocation (sub-millisecond validation), distributed rate limiting across API instances, and category note counts cache with atomic increments and 1-hour TTL, reducing database queries by 90%+.
 
-**Impact**: Enhanced security (non-guessable IDs), better suited for distributed systems, powerful query capabilities.
+#### Celery Background Tasks
 
-#### Redis
+I implemented Celery to offload long-running operations from the request/response cycle. For example, the `initialize_user_environment` task runs asynchronously after signup to create default categories without blocking the HTTP response. This delivers faster API responses, better user experience, and resilient async processing with automatic retries.
 
-**Why**: In-memory performance for three critical use cases:
-1. JWT blacklist for instant token revocation checks
-2. Rate limiting with distributed counter support
-3. Category note counts cache (atomic increments, 1-hour TTL)
+### Security Architecture
 
-**Impact**: Sub-millisecond token validation, distributed rate limiting across API instances, 90%+ reduction in database queries for category listings.
+I implemented a multi-layered security approach combining stateless JWT benefits with proper logout capability. My custom `BlacklistCheckingJWTAuthentication` checks Redis before accepting tokens, ensuring blacklisted tokens remain invalid even if not expired—critical for production applications despite adding a Redis dependency.
 
-#### Celery
-
-**Why**: Offload long-running operations from request/response cycle.
-
-**Example**: `initialize_user_environment` task runs asynchronously after signup to create default categories without blocking the HTTP response.
-
-**Impact**: Faster API responses, better user experience, resilient async processing with retries.
-
-### Security
-
-#### JWT with Redis Blacklist
-
-**Decision**: Hybrid approach combining stateless JWT benefits with logout capability via Redis blacklist.
-
-**Implementation**: Custom `BlacklistCheckingJWTAuthentication` checks Redis before accepting tokens. Tokens blacklisted on logout remain invalid even if not expired.
-
-**Trade-off**: Adds Redis dependency but enables proper logout—critical for production applications.
-
-#### Multi-Tenant Isolation
-
-**Strategy**: All database queries strictly scoped by `user_id`. Return 404 (not 403) for non-existent resources to prevent ID harvesting.
-
-**Impact**: Complete data isolation between users, protection against enumeration attacks.
-
-#### Rate Limiting
-
-**Configuration**: 100 requests/hour per authenticated user, Redis-backed for distributed systems.
-
-**Impact**: API stability under load, protection against abuse, fair resource allocation.
+- **Multi-tenant isolation**: All database queries strictly scoped by `user_id` with 404 responses (not 403) for non-existent resources to prevent ID enumeration attacks, ensuring complete data isolation between users
+- **Rate limiting**: 100 requests/hour per authenticated user, Redis-backed for distributed systems, providing API stability under load and protection against abuse
 
 ### Testing
 
-**Requirement**: 80%+ coverage on business logic (services layer).
-
-**Strategy**: 
-- Comprehensive test suites in `apps/auth/tests/` and `apps/notes/tests/`
-- pytest-django for Django-aware testing
-- HTML coverage reports for visual gap analysis
-
-**Impact**: Confidence in refactoring, tests serve as documentation, catch regressions before deployment.
-
-**Run tests**: `make dev-test-cov`
+I achieved 80%+ test coverage on business logic (services layer) using comprehensive test suites in `apps/auth/tests/` and `apps/notes/tests/` with pytest-django for Django-aware testing. HTML coverage reports enable visual gap analysis, providing confidence in refactoring, serving as documentation, and catching regressions before deployment.
 
 ### Deployment & DevOps
 
 #### Docker Multi-Stage Builds
 
-**Files**: [`backend/Dockerfile`](backend/Dockerfile) (production), [`backend/Dockerfile.dev`](backend/Dockerfile.dev) (development)
-
-**Impact**: Development/production parity, reproducible builds, smaller production images, consistent environments across team.
+I implemented separate Docker configurations for development and production. **Files**: [`backend/Dockerfile`](backend/Dockerfile) (production), [`backend/Dockerfile.dev`](backend/Dockerfile.dev) (development). This ensures development/production parity, reproducible builds, smaller production images, and consistent environments across team.
 
 #### 12-Factor App Compliance
 
-I implemented **all 12 factors** to demonstrate production-grade systems expertise:
+I implemented **all 12 factors** to demonstrate production-grade systems expertise, ensuring the application is cloud-native, horizontally scalable, and deployable to any platform (AWS, GCP, Heroku, etc.).
 
-1. **Codebase**: Single repo, multiple deploys
-2. **Dependencies**: Explicit in `pyproject.toml` with Poetry
-3. **Config**: Environment variables via django-environ
-4. **Backing Services**: PostgreSQL, Redis as attached resources
-5. **Build, Release, Run**: Separate Docker stages
-6. **Processes**: Stateless, share-nothing (horizontally scalable)
-7. **Port Binding**: Self-contained service exports HTTP
-8. **Concurrency**: Gunicorn workers + Celery workers
-9. **Disposability**: Fast startup, graceful shutdown
-10. **Dev/Prod Parity**: Docker ensures consistency
-11. **Logs**: Stream to stdout (12-factor compliant)
-12. **Admin Processes**: Django management commands in containers
+**Code & Dependencies**: Single repo with multiple deploys, explicit dependencies in `pyproject.toml` with Poetry, environment variables via django-environ
 
-**Impact**: Cloud-native, horizontally scalable, deployable to any platform (AWS, GCP, Heroku, etc.).
+**Services & Build**: PostgreSQL and Redis as attached backing services, separate Docker stages for build/release/run, stateless share-nothing processes for horizontal scalability
+
+**Runtime & Operations**: Self-contained service exports HTTP, Gunicorn workers + Celery workers for concurrency, fast startup with graceful shutdown, Docker ensures dev/prod parity, logs stream to stdout, Django management commands run in containers
 
 #### Makefile Automation
 
-[`Makefile`](Makefile) with 30+ commands for common workflows.
-
-**Examples**: `make dev-up`, `make dev-test-cov`, `make dev-migrate`, `make prod-up`
-
-**Impact**: Faster onboarding, consistent workflows across team, reduced human error.
+I created a [`Makefile`](Makefile) with 30+ commands for common workflows (examples: `make dev-up`, `make dev-test-cov`, `make dev-migrate`, `make prod-up`). This enables faster onboarding, consistent workflows across team, and reduced human error.
 
 ### Code Quality
 
-#### Linting & Formatting
-
-**Tools**: Black (formatting), Ruff (linting) configured in [`backend/pyproject.toml`](backend/pyproject.toml)
-
-**Impact**: Zero style debates, automated consistency, catch bugs before runtime.
-
-#### Split Settings Pattern
-
-**Files**: `base.py` (shared), `development.py` (debug mode), `production.py` (secure defaults)
-
-**Impact**: Environment-specific optimizations without duplication, easier secret management.
+I configured Black (formatting) and Ruff (linting) in [`backend/pyproject.toml`](backend/pyproject.toml) for automated consistency and catching bugs before runtime. I implemented a split settings pattern with `base.py` (shared), `development.py` (debug mode), and `production.py` (secure defaults) to enable environment-specific optimizations without duplication and easier secret management.
 
 ## Frontend
 
+### Key Highlights
+
+- Next.js 16 + React 19 + TypeScript for modern React framework with built-in optimizations and type safety
+- Tailwind CSS 4 utility-first approach enables rapid UI development with consistent design system
+- Bun package manager delivers 3-10x faster package installation and script execution
+- Docker multi-stage builds with separate dev/prod configurations optimize for each environment (~72MB production image)
+- Network isolation architecture ensures frontend only communicates with backend API, enforcing proper security boundaries
+
 ### Technology Stack
 
-#### Next.js 16 + React 19 + TypeScript
+I chose Next.js 16 with React 19 for built-in optimizations, server-side rendering, and excellent developer experience. Next.js provides automatic code splitting, built-in API routes, and server components out of the box, while React 19 brings improved concurrent features and better performance. TypeScript ensures type safety across the entire frontend codebase, catching type errors at compile time to prevent runtime bugs. This combination delivers fast page loads, reduced bundle sizes, and hot module replacement for instant development feedback.
 
-**Why**: Modern React framework with built-in optimizations, server-side rendering capabilities, and excellent developer experience. TypeScript ensures type safety across the codebase.
+I adopted Tailwind CSS 4 for rapid UI development without leaving the markup. The utility-first approach eliminates context switching between CSS files and components, while version 4 brings significant performance improvements and modern CSS features. Utility classes enable consistent design system enforcement directly in markup, reducing custom CSS files and resulting in smaller bundle sizes through purging unused styles.
 
-**Impact**: Fast page loads, automatic code splitting, built-in API routes, hot module replacement for instant feedback during development.
-
-#### Tailwind CSS 4
-
-**Why**: Utility-first CSS framework enables rapid UI development without leaving the markup. Version 4 brings performance improvements and modern CSS features.
-
-**Impact**: Consistent design system, reduced CSS bundle size, faster development velocity.
-
-#### Bun Package Manager
-
-**Why**: Significantly faster package installation and script execution compared to npm/yarn (3-10x in benchmarks).
-
-**Impact**: Faster builds, reduced CI/CD time, improved developer experience with instant feedback.
+I selected Bun over npm/yarn for dramatically faster package installation and script execution (3-10x faster in benchmarks). Bun's JavaScript runtime written in Zig provides near-instant package resolution and script execution, reducing CI/CD pipeline time and improving developer experience with instant feedback.
 
 ### Containerization
 
-#### Docker Development & Production Setup
+#### Docker Multi-Stage Builds
 
-**Development**:
-- Hot reload with Next.js Fast Refresh
-- Volume mounting for instant code changes
-- Optimized for macOS with `:cached` mount flags
-- Separate from production build for faster feedback
+I implemented separate Docker configurations for development and production to optimize for each environment's needs. **Files**: [`frontend/Dockerfile`](frontend/Dockerfile) (production), [`frontend/Dockerfile.dev`](frontend/Dockerfile.dev) (development)
 
-**Production**:
-- Multi-stage Docker build for minimal image size
-- Next.js standalone mode reduces image to ~72MB (compressed)
-- Non-root user for security
-- Health check endpoint at `/api/health`
+**Development**: Hot reload with Next.js Fast Refresh, volume mounting with `:cached` flags optimized for macOS, separate Dockerfile to avoid production build overhead.
 
-**Files**: [`frontend/Dockerfile`](frontend/Dockerfile) (production), [`frontend/Dockerfile.dev`](frontend/Dockerfile.dev) (development)
+**Production**: Multi-stage Docker build minimizes final image size, Next.js standalone mode reduces production image to ~72MB (compressed), non-root user execution for security, health check endpoint at `/api/health` for container orchestration.
 
-**Impact**: Development/production parity, consistent environments, optimized production deployment, seamless hot reload during development.
+This ensures development/production parity, consistent environments across team members, optimized production deployment, and seamless hot reload during development.
 
 ### Architecture & Security
 
-#### Network Isolation
+I designed the frontend container to communicate exclusively with the backend API via Docker network, with no direct access to PostgreSQL or Redis. Docker Compose configures the frontend service on `noteapp_network` with dependencies only on the `api` service, intentionally not exposing database and cache ports. This defense-in-depth approach ensures that even if the frontend is compromised, attackers cannot directly access database or cache, enforcing proper API-based architecture where all data access flows through authenticated endpoints.
 
-**Strategy**: Frontend container can only communicate with backend API via Docker network. No direct access to PostgreSQL or Redis.
-
-**Implementation**: Docker Compose configures frontend service on `noteapp_network` with dependencies only on `api` service. Database and cache ports not exposed to frontend.
-
-**Impact**: Defense in depth, reduced attack surface, enforces proper API-based architecture.
-
-#### Environment Configuration
-
-**Variables**:
-- `NEXT_PUBLIC_API_URL`: Backend API endpoint (defaults: `http://localhost:8000` dev, `http://api:8000` prod)
-- `NODE_ENV`: Environment mode (development/production)
-
-**Impact**: Flexible deployment configurations, environment-specific optimizations, client-side API discovery.
-
-## Quick Start
-
-### Development Environment
-
-```bash
-# Start all services (backend + frontend + databases)
-docker-compose -f docker-compose.dev.yml up
-
-# Or start in detached mode
-docker-compose -f docker-compose.dev.yml up -d
-
-# View services
-docker-compose -f docker-compose.dev.yml ps
-
-# Access services
-# - Frontend: http://localhost:3000
-# - Backend API: http://localhost:8000
-# - API Docs: http://localhost:8000/api/docs/
-
-# View logs
-docker-compose -f docker-compose.dev.yml logs frontend
-docker-compose -f docker-compose.dev.yml logs api
-
-# Stop all services
-docker-compose -f docker-compose.dev.yml down
-
-# Run backend tests with coverage
-make dev-test-cov
-```
-
-### Production Environment
-
-```bash
-# Build and start all services
-docker-compose up -d
-
-# View service status
-docker-compose ps
-
-# View logs
-docker-compose logs frontend
-docker-compose logs api
-
-# Stop all services
-docker-compose down
-```
-
-### Hot Reload (Development)
-
-The frontend is configured with volume mounting for instant hot reload:
-
-1. Edit any file in `frontend/app/` or `frontend/components/`
-2. Save the file
-3. Next.js Fast Refresh automatically updates the browser (no rebuild needed)
-4. Check logs: `docker-compose -f docker-compose.dev.yml logs frontend`
-
-If hot reload isn't working on macOS, set this environment variable:
-
-```bash
-echo "WATCHPACK_POLLING=true" >> .env
-docker-compose -f docker-compose.dev.yml restart frontend
-```
-
-### Troubleshooting
-
-**Frontend can't reach backend:**
-```bash
-# Check if API service is healthy
-docker-compose -f docker-compose.dev.yml ps api
-
-# Check backend logs
-docker-compose -f docker-compose.dev.yml logs api
-
-# Verify network connectivity from frontend
-docker exec -it noteapp_frontend_dev sh
-wget -O- http://api:8000/api/health/
-```
-
-**Port already in use:**
-```bash
-# Stop conflicting services
-docker-compose -f docker-compose.dev.yml down
-
-# Or change ports in docker-compose.dev.yml
-# Edit the ports section: "3001:3000" instead of "3000:3000"
-```
-
-**Slow file watching on macOS:**
-- This is a known Docker limitation on macOS
-- The `:cached` flag in docker-compose.dev.yml already optimizes this
-- If still slow, use `WATCHPACK_POLLING=true` (trades CPU for consistency)
-
-See [`backend/README.md`](backend/README.md) for comprehensive API documentation.
-
-## Repository Structure
-
-```
-noteapp/
-├── backend/              # Django REST Framework API
-│   ├── api/              # Django project config
-│   ├── apps/             # Applications (auth, notes)
-│   ├── tests/            # 80%+ coverage test suite
-│   ├── Dockerfile        # Production Docker build
-│   └── Dockerfile.dev    # Development Docker build with hot reload
-├── frontend/             # Next.js 16 + React 19 application
-│   ├── app/              # App router pages and API routes
-│   ├── public/           # Static assets
-│   ├── Dockerfile        # Production Docker build (standalone mode)
-│   └── Dockerfile.dev    # Development Docker build with hot reload
-├── docker-compose.yml    # Production orchestration (frontend + backend + databases)
-├── docker-compose.dev.yml # Development with hot reload for both frontend and backend
-└── Makefile              # 30+ automation commands
-```
+I implemented environment-based configuration using Next.js's built-in environment variable system. The `NEXT_PUBLIC_API_URL` variable (defaults: `http://localhost:8000` dev, `http://api:8000` prod) enables client-side API discovery without hardcoded URLs, allowing flexible deployment configurations and seamless switching between local development and containerized environments.
