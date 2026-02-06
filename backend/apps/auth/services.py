@@ -3,6 +3,7 @@ Service Layer for authentication business logic.
 All business logic resides here, keeping views and serializers thin.
 """
 
+import logging
 from datetime import datetime
 
 from django.contrib.auth import get_user_model
@@ -12,9 +13,15 @@ from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .tasks import initialize_user_environment
-
+logger = logging.getLogger(__name__)
 User = get_user_model()
+
+# Default categories every new user starts with
+DEFAULT_CATEGORIES = [
+    {"name": "Random Thoughts", "color": "#6366f1"},
+    {"name": "Personal", "color": "#10b981"},
+    {"name": "Work", "color": "#f59e0b"},
+]
 
 
 class AuthService:
@@ -29,6 +36,9 @@ class AuthService:
         """
         Register a new user.
 
+        Creates the user account and default categories synchronously
+        within the same transaction to guarantee they are always available.
+
         Args:
             email: User's email address (will be normalized)
             password: User's password (will be hashed)
@@ -39,6 +49,8 @@ class AuthService:
         Raises:
             ValidationError: If email already exists or validation fails
         """
+        from apps.notes.models import Category
+
         # Normalize email to lowercase
         email = email.lower().strip()
 
@@ -52,8 +64,23 @@ class AuthService:
             password=password,
         )
 
-        # Trigger background task for user environment initialization
-        initialize_user_environment.delay(user.id)
+        # Create default categories synchronously within the same
+        # transaction so they are guaranteed to exist when the user
+        # first loads the dashboard.
+        for cat in DEFAULT_CATEGORIES:
+            category = Category.objects.create(
+                user=user,
+                name=cat["name"],
+                color=cat["color"],
+            )
+            # Initialize category note count in cache
+            cache_key = f"category:{category.id}:note_count"
+            cache.set(cache_key, 0, timeout=3600)
+
+        logger.info(
+            f"Created user {user.email} (ID: {user.id}) with "
+            f"{len(DEFAULT_CATEGORIES)} default categories"
+        )
 
         return {
             "id": user.id,

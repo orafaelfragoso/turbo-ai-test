@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Inria_Serif } from 'next/font/google';
+import { QueryClientProvider } from '@/shared/components';
 import './globals.css';
 
 const inter = Inter({
@@ -27,7 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${inriaSerif.variable} antialiased`}>{children}</body>
+      <body className={`${inter.variable} ${inriaSerif.variable} antialiased`}>
+        <QueryClientProvider>{children}</QueryClientProvider>
+      </body>
     </html>
   );
 }

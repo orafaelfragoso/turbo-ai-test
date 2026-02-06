@@ -1,110 +1,39 @@
-'use client';
-
 import Image from 'next/image';
 import { type ComponentProps, type ReactNode } from 'react';
-import { type CategoryType, getCategoryColorClass, getCategoryBorderClass } from '@/shared/lib/category-colors';
-import { Tag, Button, PlusIcon } from '@/shared/components';
+import { Tag, Button, PlusIcon, Link, LogoutButton } from '@/shared/components';
 import { cn } from '@/shared/lib/cn';
-import { useNotesFilter } from '@/features/notes/hooks';
+import type { NotePreview } from '@/shared/lib/api/schemas';
 
-// Sample notes data - in real app, this would come from API
-const sampleNotes = [
-  {
-    id: '1',
-    title: 'Grocery List',
-    content: (
-      <ul className="list-disc list-inside space-y-1">
-        <li>Milk</li>
-        <li>Eggs</li>
-        <li>Bread</li>
-        <li>Bananas</li>
-        <li>Spinach</li>
-      </ul>
-    ),
-    category: 'random-thoughts' as CategoryType,
-    date: 'today',
-  },
-  {
-    id: '2',
-    title: 'Meeting with Team',
-    content:
-      'Discuss project timeline and milestones. Review budget and resource allocation. Address any blockers and plan next steps.',
-    category: 'school' as CategoryType,
-    date: 'yesterday',
-  },
-  {
-    id: '3',
-    title: 'Note Title',
-    content: 'Note content...',
-    category: 'school' as CategoryType,
-    date: 'July 16',
-  },
-  {
-    id: '4',
-    title: 'Vacation Ideas',
-    content: (
-      <ul className="list-disc list-inside space-y-1">
-        <li>Visit Bali for beaches and culture</li>
-        <li>Explore the historic sites in Rome</li>
-        <li>Go hiking in the Swiss Alps</li>
-        <li>Relax in the hot springs of Iceland</li>
-      </ul>
-    ),
-    category: 'random-thoughts' as CategoryType,
-    date: 'July 15',
-  },
-  {
-    id: '5',
-    title: 'Note Title',
-    content:
-      'Lately, I\'ve been on a quest to discover new books to read. I\'ve come across several recommendations that have piqued my interest. "The Alchemist" by Paulo Coelho is at the top of my list, given its reputation as a life-changing read. I\'ve also heard great things about "Educated" by Tara Westover and "Becoming" by Michelle Obama. Each of thes...',
-    category: 'personal' as CategoryType,
-    date: 'June 12',
-  },
-  {
-    id: '6',
-    title:
-      'A Deep and Contemplative Personal Reflection on the Multifaceted and Ever-Evolving Journey of Life',
-    content: "Life has been a whirlwind of events and emotions lately. I've been juggling work,",
-    category: 'random-thoughts' as CategoryType,
-    date: 'June 11',
-  },
-  {
-    id: '7',
-    title: 'Project X Updates',
-    content:
-      'Finalized design mockups and received approval from stakeholders. Began development on the front-end. Backend integration is scheduled for next week. Team is on track to meet the deadline.',
-    category: 'school' as CategoryType,
-    date: 'June 10',
-  },
-];
+/**
+ * Convert hex color to rgba with opacity
+ */
+function hexToRgba(hex: string, opacity: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
 
 interface NotesConnectedProps {
+  notes: NotePreview[];
   showHeaderOnly?: boolean;
   showContentOnly?: boolean;
 }
 
 /**
- * Notes Component (Connected)
+ * Notes Component (Server Component)
  *
- * Self-contained component that manages notes data and filtering.
+ * Displays notes with filtering applied.
  */
-function NotesConnected({ showHeaderOnly, showContentOnly }: NotesConnectedProps) {
-  const { selectedCategory, openNote, createNote } = useNotesFilter();
-
-  const filteredNotes =
-    selectedCategory === null
-      ? sampleNotes
-      : sampleNotes.filter((note) => note.category === selectedCategory);
-
+function NotesConnected({ notes, showHeaderOnly, showContentOnly }: NotesConnectedProps) {
   // Header only mode
   if (showHeaderOnly) {
-    return <NotesHeader onNewNote={createNote} />;
+    return <NotesHeader />;
   }
 
   // Content only mode
   if (showContentOnly) {
-    if (filteredNotes.length === 0) {
+    if (notes.length === 0) {
       return (
         <NotesEmpty
           illustration={
@@ -124,15 +53,18 @@ function NotesConnected({ showHeaderOnly, showContentOnly }: NotesConnectedProps
 
     return (
       <NotesGrid>
-        {filteredNotes.map((note) => (
-          <NotesCard
-            key={note.id}
-            title={note.title}
-            content={note.content}
-            category={note.category}
-            date={note.date}
-            onClick={() => openNote(note.id)}
-          />
+        {notes.map((note) => (
+          <Link key={note.id} href={`/notes/${note.id}`}>
+            <NotesCard
+              title={note.title}
+              content={note.content_preview}
+              category={note.category}
+              date={new Date(note.updated_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            />
+          </Link>
         ))}
       </NotesGrid>
     );
@@ -141,19 +73,22 @@ function NotesConnected({ showHeaderOnly, showContentOnly }: NotesConnectedProps
   // Full widget (default)
   return (
     <main className="flex-1 flex flex-col min-w-0">
-      <NotesHeader onNewNote={createNote} />
+      <NotesHeader />
       <div className="flex-1">
-        {filteredNotes.length > 0 ? (
+        {notes.length > 0 ? (
           <NotesGrid>
-            {filteredNotes.map((note) => (
-              <NotesCard
-                key={note.id}
-                title={note.title}
-                content={note.content}
-                category={note.category}
-                date={note.date}
-                onClick={() => openNote(note.id)}
-              />
+            {notes.map((note) => (
+              <Link key={note.id} href={`/notes/${note.id}`}>
+                <NotesCard
+                  title={note.title}
+                  content={note.content_preview}
+                  category={note.category}
+                  date={new Date(note.updated_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                />
+              </Link>
             ))}
           </NotesGrid>
         ) : (
@@ -179,19 +114,21 @@ function NotesConnected({ showHeaderOnly, showContentOnly }: NotesConnectedProps
 /**
  * NotesHeader Component
  *
- * Header with the "New Note" button
+ * Header with the "New Note" and logout buttons
  */
-interface NotesHeaderProps {
-  onNewNote?: () => void;
-}
-
-function NotesHeader({ onNewNote }: NotesHeaderProps) {
+function NotesHeader() {
   return (
-    <header className="flex items-center justify-end p-4">
-      <Button variant="contained" onClick={onNewNote} className="flex items-center gap-2">
-        <PlusIcon className="size-5" />
-        <span>New Note</span>
-      </Button>
+    <header className="flex items-center justify-between p-4">
+      <div>{/* Placeholder for future user menu */}</div>
+      <div className="flex items-center gap-3">
+        <LogoutButton />
+        <Link href="/notes/new">
+          <Button variant="contained" className="flex items-center gap-2">
+            <PlusIcon className="size-5" />
+            <span>New Note</span>
+          </Button>
+        </Link>
+      </div>
     </header>
   );
 }
@@ -217,16 +154,15 @@ function NotesGrid({ children }: NotesGridProps) {
 interface NotesCardProps extends ComponentProps<'article'> {
   title: string;
   content: ReactNode;
-  category: CategoryType;
+  category: { name: string; color: string } | null;
   date: string;
-  onClick?: () => void;
 }
 
-function NotesCard({ title, content, category, date, onClick, className, ...props }: NotesCardProps) {
-  const Component = onClick ? 'button' : 'article';
+function NotesCard({ title, content, category, date, className, ...props }: NotesCardProps) {
+  const categoryColor = category?.color || '#6366F1';
 
   return (
-    <Component
+    <article
       className={cn(
         'w-full min-h-60 rounded-xl p-4',
         'flex flex-col items-start gap-3',
@@ -234,30 +170,34 @@ function NotesCard({ title, content, category, date, onClick, className, ...prop
         'border-[3px]',
         'shadow-sm',
         'transition-all duration-200',
-        getCategoryColorClass(category),
-        getCategoryBorderClass(category),
-        onClick && 'cursor-pointer hover:shadow-lg hover:scale-[1.02]',
-        onClick &&
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-accent))] focus-visible:ring-offset-2',
+        'cursor-pointer hover:shadow-lg hover:scale-[1.02]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-accent))] focus-visible:ring-offset-2',
         className
       )}
-      onClick={onClick}
+      style={{
+        borderColor: categoryColor,
+        backgroundColor: hexToRgba(categoryColor, 0.2), // 20% opacity
+      }}
       {...props}
     >
       {/* Header: Date and Category */}
       <div className="flex flex-row items-start gap-2">
-        <span className="font-sans text-xs font-bold text-[rgb(var(--color-text-primary))]">{date}</span>
-        <Tag category={category} showLabel />
+        <span className="font-sans text-xs font-bold text-[rgb(var(--color-text-primary))]">
+          {date}
+        </span>
+        {category && <Tag name={category.name} color={category.color} showLabel />}
       </div>
 
       {/* Title */}
-      <h3 className="font-serif text-2xl font-bold text-[rgb(var(--color-text-primary))]">{title}</h3>
+      <h3 className="font-serif text-2xl font-bold text-[rgb(var(--color-text-primary))]">
+        {title}
+      </h3>
 
       {/* Content Preview */}
       <div className="font-sans text-xs font-normal text-[rgb(var(--color-text-primary))] line-clamp-4">
         {content}
       </div>
-    </Component>
+    </article>
   );
 }
 
@@ -278,7 +218,9 @@ function NotesEmpty({ illustration, message }: NotesEmptyProps) {
       <div className="mb-8 flex items-center justify-center">{illustration}</div>
 
       {/* Message */}
-      <p className="text-lg text-[rgb(var(--color-text-secondary))] text-center max-w-md font-medium">{message}</p>
+      <p className="text-lg text-[rgb(var(--color-text-secondary))] text-center max-w-md font-medium">
+        {message}
+      </p>
     </div>
   );
 }

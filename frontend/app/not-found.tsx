@@ -15,7 +15,13 @@ export default function NotFoundPage() {
     <div className="min-h-screen bg-[rgb(var(--color-background))] flex items-center justify-center px-6">
       <div className="text-center">
         <div className="flex justify-center mb-8">
-          <Image src="/coffee.png" alt="Coffee cup illustration" width={120} height={160} quality={90} />
+          <Image
+            src="/coffee.png"
+            alt="Coffee cup illustration"
+            width={120}
+            height={160}
+            quality={90}
+          />
         </div>
 
         <h1 className="font-serif text-6xl font-bold text-[rgb(var(--color-text-primary))] mb-4">

@@ -23,7 +23,13 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
     <div className="min-h-screen bg-[rgb(var(--color-background))] flex items-center justify-center px-6">
       <div className="text-center">
         <div className="flex justify-center mb-8">
-          <Image src="/cactus.png" alt="Cactus illustration" width={120} height={140} quality={90} />
+          <Image
+            src="/cactus.png"
+            alt="Cactus illustration"
+            width={120}
+            height={140}
+            quality={90}
+          />
         </div>
 
         <h1 className="font-serif text-4xl font-bold text-[rgb(var(--color-text-primary))] mb-4">

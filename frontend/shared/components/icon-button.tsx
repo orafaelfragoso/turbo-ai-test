@@ -20,7 +20,7 @@ export function IconButton({ icon, className, type = 'button', ...props }: IconB
     <button
       type={type}
       className={cn(
-        'size-10 rounded-full',
+        'size-10 rounded-full underline-none',
         'flex items-center justify-center',
         'bg-[rgb(var(--color-text-primary))]',
         'text-[rgb(var(--color-surface))]',

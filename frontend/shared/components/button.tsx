@@ -25,7 +25,7 @@ export function Button({
     <button
       type={type}
       className={cn(
-        'px-4 py-3 rounded-full',
+        'px-4 py-3 rounded-full underline-none',
         'font-sans text-base font-bold',
         'bg-transparent border border-[rgb(var(--color-accent))]',
         'text-[rgb(var(--color-accent))]',

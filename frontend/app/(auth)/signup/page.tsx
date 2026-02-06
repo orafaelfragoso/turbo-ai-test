@@ -1,17 +1,23 @@
+'use client';
+
+import { useActionState, useEffect } from 'react';
 import Image from 'next/image';
 import { FormLayout } from '@/features/auth/components';
 import { Button, Input, Link, EyeIcon } from '@/shared/components';
-
-export const metadata = {
-  title: 'Sign Up - NoteApp',
-  description: 'Create a new NoteApp account',
-};
+import { signupAction } from '@/app/(auth)/actions';
 
 /**
  * Signup Page
  * Displays the registration form with email/password inputs
  */
 export default function SignupPage() {
+  const [state, formAction, isPending] = useActionState(signupAction, null);
+
+  // Set document title
+  useEffect(() => {
+    document.title = 'Sign Up - NoteApp';
+  }, []);
+
   return (
     <FormLayout
       title="Yay, New Friend!"
@@ -26,13 +32,21 @@ export default function SignupPage() {
         />
       }
     >
-      <form className="flex flex-col gap-4">
+      <form action={formAction} className="flex flex-col gap-4">
+        {/* Error message */}
+        {state?.error && (
+          <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200">
+            <p className="text-sm text-red-800">{state.error}</p>
+          </div>
+        )}
+
         <Input
           type="email"
           name="email"
           placeholder="Email address"
           autoComplete="email"
           required
+          disabled={isPending}
         />
         <Input
           type="password"
@@ -41,16 +55,24 @@ export default function SignupPage() {
           autoComplete="new-password"
           icon={<EyeIcon className="size-5" />}
           required
+          disabled={isPending}
+          minLength={8}
         />
 
+        <div className="text-xs text-[rgb(var(--color-text-secondary))]">
+          Password must be at least 8 characters
+        </div>
+
         <div className="mt-4">
-          <Button type="submit" variant="blocked">
-            Sign Up
+          <Button type="submit" variant="blocked" disabled={isPending}>
+            {isPending ? 'Creating account...' : 'Sign Up'}
           </Button>
         </div>
 
         <div className="text-center">
-          <Link href="/login">We&apos;re already friends!</Link>
+          <Link href="/login" className="underline">
+            We&apos;re already friends!
+          </Link>
         </div>
       </form>
     </FormLayout>

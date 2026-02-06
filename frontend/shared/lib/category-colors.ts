@@ -1,58 +1,47 @@
 /**
- * Category Color Mapping Utility
- * Maps category slugs to their corresponding color values
+ * Category Color Utility
+ * Uses hex colors directly from the backend for Tailwind classes
  */
 
+/**
+ * Legacy CategoryType for static color references
+ * Used for UI components that need predefined colors
+ */
 export type CategoryType = 'personal' | 'school' | 'random-thoughts' | 'drama';
 
 /**
- * Category display names
+ * Category display names (legacy)
  */
 export const categoryNames: Record<CategoryType, string> = {
-  'personal': 'Personal',
-  'school': 'School',
+  personal: 'Personal',
+  school: 'School',
   'random-thoughts': 'Random Thoughts',
-  'drama': 'Drama',
+  drama: 'Drama',
 } as const;
 
 /**
- * Get category background color class for cards
+ * Get category background color class for cards from hex color
+ * Uses the hex color directly from the backend
  */
-export function getCategoryColorClass(category: CategoryType): string {
-  const colorMap: Record<CategoryType, string> = {
-    'personal': 'bg-[rgb(var(--color-category-personal))]/20',
-    'school': 'bg-[rgb(var(--color-category-accent))]/20',
-    'random-thoughts': 'bg-[rgb(var(--color-category-thoughts))]/20',
-    'drama': 'bg-[rgb(var(--color-category-school))]/20',
-  };
-
-  return colorMap[category];
+export function getCategoryColorClass(color: string): string {
+  // Use the hex color directly from backend with opacity
+  return `bg-[${color}]/20`;
 }
 
 /**
- * Get category border color class for cards
+ * Get category border color class for cards from hex color
+ * Uses the hex color directly from the backend
  */
-export function getCategoryBorderClass(category: CategoryType): string {
-  const colorMap: Record<CategoryType, string> = {
-    'personal': 'border-[rgb(var(--color-category-personal))]',
-    'school': 'border-[rgb(var(--color-category-accent))]',
-    'random-thoughts': 'border-[rgb(var(--color-category-thoughts))]',
-    'drama': 'border-[rgb(var(--color-category-school))]',
-  };
-
-  return colorMap[category];
+export function getCategoryBorderClass(color: string): string {
+  // Use the hex color directly from backend
+  return `border-[${color}]`;
 }
 
 /**
- * Get category dot color class
+ * Get category dot color class from hex color
+ * Uses the hex color directly from the backend
  */
-export function getCategoryDotClass(category: CategoryType): string {
-  const colorMap: Record<CategoryType, string> = {
-    'personal': 'bg-[rgb(var(--color-category-personal))]',
-    'school': 'bg-[rgb(var(--color-category-accent))]',
-    'random-thoughts': 'bg-[rgb(var(--color-category-thoughts))]',
-    'drama': 'bg-[rgb(var(--color-category-school))]',
-  };
-
-  return colorMap[category];
+export function getCategoryDotClass(color: string): string {
+  // Use the hex color directly from backend
+  return `bg-[${color}]`;
 }

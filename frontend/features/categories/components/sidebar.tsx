@@ -1,70 +1,55 @@
-'use client';
-
-import { type CategoryType, categoryNames } from '@/shared/lib/category-colors';
 import { Tag } from '@/shared/components';
+import { Link } from '@/shared/components';
 import { cn } from '@/shared/lib/cn';
-import { useCategoryFilter } from '@/features/categories/hooks';
-
-// Sample categories data - in real app, this would come from API
-const categories: { category: CategoryType; count: number }[] = [
-  { category: 'random-thoughts', count: 3 },
-  { category: 'school', count: 3 },
-  { category: 'personal', count: 1 },
-];
+import type { Category } from '@/shared/lib/api/schemas';
 
 /**
- * Sidebar Component (Connected)
+ * Sidebar Component (Server Component)
  *
- * Self-contained component that manages category selection state
- * and syncs with URL query params.
+ * Displays a list of categories with note counts and allows filtering via links.
  */
-function SidebarConnected() {
-  const { selected, select } = useCategoryFilter();
+interface SidebarConnectedProps {
+  categories: Category[];
+  selectedCategoryId?: number;
+}
 
-  return (
-    <SidebarRoot
-      categories={categories}
-      selectedCategory={selected}
-      onSelectCategory={select}
-    />
-  );
+function SidebarConnected({ categories, selectedCategoryId }: SidebarConnectedProps) {
+  return <SidebarRoot categories={categories} selectedCategoryId={selectedCategoryId} />;
 }
 
 /**
  * SidebarRoot Component (Presentational)
  *
- * Displays a list of categories with note counts and allows filtering.
+ * Displays a list of categories with their note counts and allows filtering.
  */
 interface SidebarRootProps {
   /** Array of categories with their note counts */
-  categories: { category: CategoryType; count: number }[];
-  /** Currently selected category (undefined for "All Categories") */
-  selectedCategory?: CategoryType | 'all';
-  /** Callback when a category is selected */
-  onSelectCategory?: (category: CategoryType | 'all') => void;
+  categories: Category[];
+  /** Currently selected category ID (undefined for "All Categories") */
+  selectedCategoryId?: number;
 }
 
-function SidebarRoot({ categories, selectedCategory = 'all', onSelectCategory }: SidebarRootProps) {
+function SidebarRoot({ categories, selectedCategoryId }: SidebarRootProps) {
+  const isAllSelected = selectedCategoryId === undefined;
+
   return (
     <aside className="w-56 shrink-0 py-4">
       <nav className="flex flex-col gap-1">
         {/* All Categories */}
-        <SidebarItem
-          label="All Categories"
-          isSelected={selectedCategory === 'all'}
-          onClick={() => onSelectCategory?.('all')}
-        />
+        <Link href="/">
+          <SidebarItem label="All Categories" isSelected={isAllSelected} />
+        </Link>
 
         {/* Individual Categories */}
-        {categories.map(({ category, count }) => (
-          <SidebarItem
-            key={category}
-            category={category}
-            label={categoryNames[category]}
-            count={count}
-            isSelected={selectedCategory === category}
-            onClick={() => onSelectCategory?.(category)}
-          />
+        {categories.map((category) => (
+          <Link key={category.id} href={`/?category_id=${category.id}`}>
+            <SidebarItem
+              label={category.name}
+              color={category.color}
+              count={category.note_count}
+              isSelected={selectedCategoryId === category.id}
+            />
+          </Link>
         ))}
       </nav>
     </aside>
@@ -81,21 +66,18 @@ interface SidebarItemProps {
   label: string;
   /** Optional count to display */
   count?: number;
-  /** Optional category for tag display */
-  category?: CategoryType;
+  /** Optional hex color code for category display */
+  color?: string;
   /** Whether this item is selected */
   isSelected?: boolean;
-  /** Click handler */
-  onClick?: () => void;
 }
 
-function SidebarItem({ label, count, category, isSelected, onClick }: SidebarItemProps) {
-  // Header style (no hover, always bold) when no category is provided
-  const isHeader = !category;
+function SidebarItem({ label, count, color, isSelected }: SidebarItemProps) {
+  // Header style (no hover, always bold) when no color is provided
+  const isHeader = !color;
 
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
         'flex items-center gap-2',
         'w-full px-4 py-2',
@@ -105,9 +87,14 @@ function SidebarItem({ label, count, category, isSelected, onClick }: SidebarIte
         !isHeader && 'hover:bg-[rgb(var(--color-accent))]/20'
       )}
     >
-      {category ? (
+      {color ? (
         <>
-          <Tag category={category} showLabel className={isSelected ? '[&>span]:font-bold' : ''} />
+          <Tag
+            name={label}
+            color={color}
+            showLabel
+            className={isSelected ? '[&>span]:font-bold' : ''}
+          />
           <div className="flex-1" />
           {count !== undefined && (
             <span
@@ -125,7 +112,7 @@ function SidebarItem({ label, count, category, isSelected, onClick }: SidebarIte
           {label}
         </span>
       )}
-    </button>
+    </div>
   );
 }
 

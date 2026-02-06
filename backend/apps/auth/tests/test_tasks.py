@@ -19,7 +19,9 @@ class TestInitializeUserEnvironmentTask:
     """Test cases for initialize_user_environment Celery task."""
 
     def test_initialize_user_environment_success(self, celery_eager_mode):
-        """Test successful user environment initialization."""
+        """Test successful user environment initialization creates 3 default categories."""
+        from apps.notes.models import Category
+
         # Create a test user
         user = User.objects.create_user(
             email="newtaskuser@example.com",
@@ -34,6 +36,16 @@ class TestInitializeUserEnvironmentTask:
         assert result["user_id"] == user.id
         assert result["email"] == user.email
         assert result["status"] == "initialized"
+        assert len(result["default_category_ids"]) == 3
+
+        # Verify all 3 default categories were created in the database
+        categories = Category.objects.filter(user=user).order_by("created_at")
+        assert categories.count() == 3
+
+        names = list(categories.values_list("name", flat=True))
+        assert "Random Thoughts" in names
+        assert "Personal" in names
+        assert "Work" in names
 
     def test_initialize_user_environment_user_not_found(self, celery_eager_mode):
         """Test task behavior when user doesn't exist."""
@@ -119,9 +131,12 @@ class TestInitializeUserEnvironmentTask:
         assert "user_id" in result
         assert "email" in result
         assert "status" in result
+        assert "default_category_ids" in result
         assert result["user_id"] == user.id
         assert result["email"] == user.email
         assert result["status"] == "initialized"
+        assert isinstance(result["default_category_ids"], list)
+        assert len(result["default_category_ids"]) == 3
 
     @patch("apps.auth.tasks.User.objects.get")
     def test_initialize_user_environment_handles_database_errors(

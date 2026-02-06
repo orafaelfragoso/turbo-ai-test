@@ -10,6 +10,8 @@ export { Button } from '@/shared/components/button';
 export { Input } from '@/shared/components/input';
 export { IconButton } from '@/shared/components/icon-button';
 export { Link } from '@/shared/components/link';
+export { QueryClientProvider } from '@/shared/components/query-client-provider';
+export { LogoutButton } from '@/shared/components/logout-button';
 
 // Category Components
 export { Dot } from '@/shared/components/dot';

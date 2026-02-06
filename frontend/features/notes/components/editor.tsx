@@ -3,15 +3,19 @@
 import { type ReactNode } from 'react';
 import { Selector, IconButton, CloseIcon, QuoteIcon } from '@/shared/components';
 import { Tag } from '@/shared/components';
-import {
-  type CategoryType,
-  getCategoryColorClass,
-  getCategoryBorderClass,
-} from '@/shared/lib/category-colors';
 import { cn } from '@/shared/lib/cn';
 import { useNoteEditor } from '@/features/notes/hooks';
+import { useCategoriesQuery } from '@/features/categories/hooks';
 
-const allCategories: CategoryType[] = ['personal', 'school', 'random-thoughts', 'drama'];
+/**
+ * Convert hex color to rgba with opacity
+ */
+function hexToRgba(hex: string, opacity: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
 
 interface EditorConnectedProps {
   /** Note ID - 'new' for creating a new note */
@@ -20,13 +24,15 @@ interface EditorConnectedProps {
   initialData?: {
     title: string;
     content: string;
-    category: CategoryType;
+    categoryId?: number;
+    categoryName?: string;
+    categoryColor?: string;
     lastEdited?: string;
   };
 }
 
 /**
- * Editor Component (Connected)
+ * Editor Component (Client Component)
  *
  * Self-contained component that manages note editing state.
  */
@@ -36,7 +42,8 @@ function EditorConnected({ noteId, initialData }: EditorConnectedProps) {
     setTitle,
     content,
     setContent,
-    category,
+    categoryId,
+    categoryColor,
     selectCategory,
     isCategoryOpen,
     toggleCategoryDropdown,
@@ -44,9 +51,16 @@ function EditorConnected({ noteId, initialData }: EditorConnectedProps) {
     lastEdited,
   } = useNoteEditor(noteId, initialData);
 
+  // Fetch categories for the dropdown
+  const { data: categories = [], isLoading, isError } = useCategoriesQuery();
+
+  // Find selected category for display
+  const selectedCategory = categories.find((cat) => cat.id === categoryId);
+
   return (
     <EditorRoot
-      category={category}
+      categoryName={selectedCategory?.name || initialData?.categoryName || 'Random Thoughts'}
+      categoryColor={selectedCategory?.color || categoryColor}
       title={title}
       content={content}
       lastEdited={lastEdited}
@@ -58,9 +72,11 @@ function EditorConnected({ noteId, initialData }: EditorConnectedProps) {
       categoryDropdown={
         isCategoryOpen && (
           <EditorDropdown
-            categories={allCategories}
-            selectedCategory={category}
-            onSelect={selectCategory}
+            categories={categories}
+            selectedCategoryId={categoryId}
+            onSelect={(id, color) => selectCategory(id, color)}
+            isLoading={isLoading}
+            isError={isError}
           />
         )
       }
@@ -74,7 +90,8 @@ function EditorConnected({ noteId, initialData }: EditorConnectedProps) {
  * Full-page note editor with category selector, title, and content
  */
 interface EditorRootProps {
-  category: CategoryType;
+  categoryName: string;
+  categoryColor: string;
   title: string;
   content: string;
   lastEdited?: string;
@@ -87,7 +104,8 @@ interface EditorRootProps {
 }
 
 function EditorRoot({
-  category,
+  categoryName,
+  categoryColor,
   title,
   content,
   lastEdited,
@@ -104,7 +122,11 @@ function EditorRoot({
         {/* Header - fixed */}
         <header className="shrink-0 flex items-center justify-between py-8">
           <div className="relative">
-            <Selector category={category} isOpen={isCategoryOpen} onClick={onCategoryClick} />
+            <Selector
+              category={{ name: categoryName, color: categoryColor }}
+              isOpen={isCategoryOpen}
+              onClick={onCategoryClick}
+            />
             {categoryDropdown}
           </div>
 
@@ -122,10 +144,12 @@ function EditorRoot({
           <div
             className={cn(
               'h-full rounded-xl p-6 lg:p-8 overflow-y-auto overscroll-contain scrollbar-none',
-              'border-[3px]',
-              getCategoryBorderClass(category),
-              getCategoryColorClass(category)
+              'border-[3px]'
             )}
+            style={{
+              borderColor: categoryColor,
+              backgroundColor: hexToRgba(categoryColor, 0.2), // 20% opacity
+            }}
           >
             {/* Last Edited */}
             {lastEdited && (
@@ -181,28 +205,48 @@ function EditorRoot({
  * Dropdown menu for selecting note category
  */
 interface EditorDropdownProps {
-  categories: CategoryType[];
-  selectedCategory: CategoryType;
-  onSelect: (category: CategoryType) => void;
+  categories: Array<{ id: number; name: string; color: string }>;
+  selectedCategoryId?: number;
+  onSelect: (id: number, color: string) => void;
+  isLoading?: boolean;
+  isError?: boolean;
 }
 
-function EditorDropdown({ categories, selectedCategory, onSelect }: EditorDropdownProps) {
+function EditorDropdown({
+  categories,
+  selectedCategoryId,
+  onSelect,
+  isLoading,
+  isError,
+}: EditorDropdownProps) {
   return (
-    <div className="absolute top-full left-0 mt-2 w-full min-w-48 bg-[rgb(var(--color-surface))] rounded-lg shadow-lg z-50 overflow-hidden">
-      {categories.map((cat) => (
-        <button
-          key={cat}
-          onClick={() => onSelect(cat)}
-          className={cn(
-            'w-full px-4 py-2 flex items-center gap-2',
-            'text-left transition-colors duration-200',
-            'hover:bg-[rgb(var(--color-accent))]/20',
-            selectedCategory === cat && 'bg-[rgb(var(--color-accent))]/10'
-          )}
-        >
-          <Tag category={cat} showLabel />
-        </button>
-      ))}
+    <div className="absolute top-full left-0 mt-2 w-full min-w-48 bg-[rgb(var(--color-surface))] rounded-lg shadow-lg z-50 overflow-hidden border border-[rgb(var(--color-accent))]">
+      {isLoading ? (
+        <div className="px-4 py-3 text-sm text-[rgb(var(--color-text-secondary))]">
+          Loading categories...
+        </div>
+      ) : isError ? (
+        <div className="px-4 py-3 text-sm text-red-500">Failed to load categories</div>
+      ) : categories.length === 0 ? (
+        <div className="px-4 py-3 text-sm text-[rgb(var(--color-text-secondary))]">
+          No categories available
+        </div>
+      ) : (
+        categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => onSelect(cat.id, cat.color)}
+            className={cn(
+              'w-full px-4 py-2 flex items-center gap-2',
+              'text-left transition-colors duration-200',
+              'hover:bg-[rgb(var(--color-accent))]/20',
+              selectedCategoryId === cat.id && 'bg-[rgb(var(--color-accent))]/10'
+            )}
+          >
+            <Tag name={cat.name} color={cat.color} showLabel />
+          </button>
+        ))
+      )}
     </div>
   );
 }

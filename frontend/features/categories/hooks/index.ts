@@ -2,4 +2,10 @@
  * Categories Feature Hooks
  */
 
-export { useCategoryFilter } from '@/features/categories/hooks/use-category-filter';
+export {
+  useCategoriesQuery,
+  useCategoryQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
+} from '@/features/categories/hooks/use-categories-query';

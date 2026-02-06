@@ -16,7 +16,7 @@ export function Link({ className, children, ...props }: LinkProps) {
       className={cn(
         'font-sans text-xs font-normal',
         'text-[rgb(var(--color-accent))]',
-        'underline',
+        'no-underline',
         'transition-opacity duration-200',
         'hover:opacity-70',
         'focus-visible:outline-none',

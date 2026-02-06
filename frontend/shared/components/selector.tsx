@@ -1,10 +1,9 @@
 import { type ComponentProps } from 'react';
-import { type CategoryType } from '@/shared/lib/category-colors';
 import { Tag } from '@/shared/components/tag';
 import { cn } from '@/shared/lib/cn';
 
 interface SelectorProps extends Omit<ComponentProps<'button'>, 'type'> {
-  category: CategoryType;
+  category: { name: string; color: string };
   isOpen?: boolean;
 }
 
@@ -31,7 +30,7 @@ export function Selector({ category, isOpen = false, className, ...props }: Sele
       )}
       {...props}
     >
-      <Tag category={category} />
+      <Tag name={category.name} color={category.color} />
       <ChevronIcon isOpen={isOpen} />
     </button>
   );
@@ -66,8 +65,8 @@ function ChevronIcon({ isOpen }: { isOpen: boolean }) {
  * The dropdown menu for category selection
  */
 interface SelectorDropdownProps {
-  categories: CategoryType[];
-  onSelect: (category: CategoryType) => void;
+  categories: Array<{ id: number; name: string; color: string }>;
+  onSelect: (id: number, name: string, color: string) => void;
   className?: string;
 }
 
@@ -83,9 +82,9 @@ export function SelectorDropdown({ categories, onSelect, className }: SelectorDr
     >
       {categories.map((category) => (
         <button
-          key={category}
+          key={category.id}
           type="button"
-          onClick={() => onSelect(category)}
+          onClick={() => onSelect(category.id, category.name, category.color)}
           className={cn(
             'flex items-center gap-2',
             'w-full px-4 py-4',
@@ -93,7 +92,7 @@ export function SelectorDropdown({ categories, onSelect, className }: SelectorDr
             'hover:bg-[rgb(var(--color-accent))]/20'
           )}
         >
-          <Tag category={category} />
+          <Tag name={category.name} color={category.color} />
         </button>
       ))}
     </div>

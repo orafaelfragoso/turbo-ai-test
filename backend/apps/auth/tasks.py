@@ -16,9 +16,10 @@ def initialize_user_environment(self, user_id: int):
     """
     Initialize user environment after registration.
 
-    This is an asynchronous task triggered after user signup.
-    Creates user-specific data structures, default configurations,
-    and initializes the user workspace/environment.
+    This is an idempotent task that ensures default categories exist
+    for a user. Default categories are created synchronously during
+    registration (in AuthService.register_user), so this task acts
+    as a safety net — it only creates categories that are missing.
 
     Args:
         user_id: ID of the user to initialize
@@ -29,27 +30,42 @@ def initialize_user_environment(self, user_id: int):
     try:
         from django.core.cache import cache
 
-        user = User.objects.get(id=user_id)
-        logger.info(f"Initializing environment for user {user.email} (ID: {user_id})")
-
         # Import Category model (avoid circular imports)
         from apps.notes.models import Category
 
-        # Create default "Random Thoughts" category
-        default_category = Category.objects.create(
-            user=user,
-            name="Random Thoughts",
-            color="#6366f1",  # Default indigo color
+        from apps.auth.services import DEFAULT_CATEGORIES
+
+        user = User.objects.get(id=user_id)
+        logger.info(f"Initializing environment for user {user.email} (ID: {user_id})")
+
+        existing_names = set(
+            Category.objects.filter(user=user).values_list("name", flat=True)
         )
 
-        # Initialize category note count in Redis cache
-        cache_key = f"category:{default_category.id}:note_count"
-        cache.set(cache_key, 0, timeout=3600)
+        created_ids: list[int] = []
+        for cat in DEFAULT_CATEGORIES:
+            if cat["name"] in existing_names:
+                logger.info(
+                    f"Default '{cat['name']}' category already exists "
+                    f"for user {user.email}, skipping"
+                )
+                continue
 
-        logger.info(
-            f"Created default 'Random Thoughts' category (ID: {default_category.id}) "
-            f"for user {user.email}"
-        )
+            category = Category.objects.create(
+                user=user,
+                name=cat["name"],
+                color=cat["color"],
+            )
+            created_ids.append(category.id)
+
+            # Initialize category note count in Redis cache
+            cache_key = f"category:{category.id}:note_count"
+            cache.set(cache_key, 0, timeout=3600)
+
+            logger.info(
+                f"Created default '{cat['name']}' category (ID: {category.id}) "
+                f"for user {user.email}"
+            )
 
         logger.info(f"User environment initialization completed for {user.email}")
 
@@ -57,7 +73,7 @@ def initialize_user_environment(self, user_id: int):
             "user_id": user_id,
             "email": user.email,
             "status": "initialized",
-            "default_category_id": default_category.id,
+            "default_category_ids": created_ids,
         }
 
     except User.DoesNotExist:
